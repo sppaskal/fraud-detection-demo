@@ -87,11 +87,24 @@ def analyze_text(img):
 
         # Heuristic: flag low-confidence text or known template markers
         if conf < 40 or any(k in text.lower() for k in ["sample", "template", "void"]):
-            suspicious_boxes.append((x, y, w, h))
+            suspicious_boxes.append(('low_confidence', (x, y, w, h)))
 
     # Heuristic: flag overall inconsistent font sizes (could suggest manual edits)
-    if font_sizes and np.std(font_sizes) > np.mean(font_sizes) * 0.5:
-        suspicious_boxes.append((0, 0, img.shape[1], 40))  # mark top area
+    mean = np.mean(font_sizes)
+    std = np.std(font_sizes)
+    for i, h in enumerate(font_sizes):
+        if abs(h - mean) > std:
+            suspicious_boxes.append(
+              (
+                'size_deviation',  # denotes the type of suspicion
+                (
+                    data['left'][i],
+                    data['top'][i],
+                    data['width'][i],
+                    data['height'][i]
+                )
+              )
+            )
 
     return suspicious_boxes
 
@@ -101,11 +114,14 @@ def analyze_text(img):
 # ---------------------------------------------------------------------
 
 def draw_overlay(img, boxes, out_path):
-    """Draw red rectangles around suspicious text regions and save the result."""
+    """Draw colored rectangles around suspicious text regions based on suspicion type."""
     pil_img = Image.fromarray(img)
     draw = ImageDraw.Draw(pil_img)
-    for (x, y, w, h) in boxes:
-        draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
+
+    for suspicion_type, (x, y, w, h) in boxes:
+        color = "orange" if suspicion_type == "size_deviation" else "red"
+        draw.rectangle([x, y, x + w, y + h], outline=color, width=2)
+
     pil_img.save(out_path)
 
 
