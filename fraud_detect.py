@@ -16,6 +16,19 @@ source_dir = '/app/files'
 output_dir = '/app/files/results'
 os.makedirs(output_dir, exist_ok=True)
 
+# PDF rendering
+pdf_dpi = 200  # Resolution for rendering PDF pages
+
+# OCR heuristics
+confidence_threshold = 40  # Minimum confidence to trust OCR output
+keyword_flags = ["sample", "template", "void"]  # Suspicious keywords
+font_size_deviation_multiplier = 2  # Multiplier for std deviation threshold
+fraud_score_max_trigger = 10  # Number of suspicious boxes to trigger max fraud score
+
+# Overlay colors
+color_low_confidence = "red"
+color_size_deviation = "orange"
+
 
 # ---------------------------------------------------------------------
 # Convert PDF page to image
@@ -24,8 +37,8 @@ os.makedirs(output_dir, exist_ok=True)
 def pdf_to_image(path):
     """Convert the first page of a PDF into an RGB numpy image."""
     doc = fitz.open(path)
-    page = doc.load_page(0)  # load first page only
-    pix = page.get_pixmap(dpi=200)  # render at decent resolution
+    page = doc.load_page(0)  # load first page only for demo
+    pix = page.get_pixmap(dpi=pdf_dpi)
     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
     return np.array(img)
 
@@ -86,24 +99,22 @@ def analyze_text(img):
         font_sizes.append(h)
 
         # Heuristic: flag low-confidence text or known template markers
-        if conf < 40 or any(k in text.lower() for k in ["sample", "template", "void"]):
+        if conf < confidence_threshold or any(k in text.lower() for k in keyword_flags):
             suspicious_boxes.append(('low_confidence', (x, y, w, h)))
 
     # Heuristic: flag overall inconsistent font sizes (could suggest manual edits)
     mean = np.mean(font_sizes)
     std = np.std(font_sizes)
+    threshold = font_size_deviation_multiplier * std
     for i, h in enumerate(font_sizes):
-        if abs(h - mean) > std:
+        if abs(h - mean) > threshold:
             suspicious_boxes.append(
-              (
-                'size_deviation',  # denotes the type of suspicion
-                (
+                ('size_deviation', (
                     data['left'][i],
                     data['top'][i],
                     data['width'][i],
                     data['height'][i]
-                )
-              )
+                ))
             )
 
     return suspicious_boxes
@@ -153,7 +164,7 @@ for name in os.listdir(source_dir):
         draw_overlay(img, boxes, out_file)
 
         # Basic heuristic score: number of suspicious regions
-        fraud_score = min(len(boxes) / 10, 1.0)
+        fraud_score = min(len(boxes) / fraud_score_max_trigger, 1.0)
         print(f"→ Fraud likelihood: {fraud_score:.2f}")
         print(f"→ Saved result: {out_file}\n")
 
