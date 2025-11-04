@@ -95,11 +95,15 @@ def analyze_text(img):
             int(conf_value) if str(conf_value).isdigit() else 0
         )
 
-        # Collect height of all data points to check for variance later
+        # Collect height of all data points to check for deviation later
         font_sizes.append(h)
 
-        # Heuristic: flag low-confidence text or known template markers
-        if conf < confidence_threshold or any(k in text.lower() for k in keyword_flags):
+        # Heuristic: flag known template markers
+        if any(k in text.lower() for k in keyword_flags):
+            suspicious_boxes.append(('template_marker', (x, y, w, h)))
+
+        # Heuristic: flag low-confidence text
+        if conf < confidence_threshold:
             suspicious_boxes.append(('low_confidence', (x, y, w, h)))
 
     # Heuristic: flag overall inconsistent font sizes (could suggest manual edits)
@@ -130,7 +134,15 @@ def draw_overlay(img, boxes, out_path):
     draw = ImageDraw.Draw(pil_img)
 
     for suspicion_type, (x, y, w, h) in boxes:
-        color = "orange" if suspicion_type == "size_deviation" else "red"
+        if suspicion_type == "size_deviation":
+            color = "orange"
+        elif suspicion_type == "low_confidence":
+            color = "blue"
+        elif suspicion_type == "template_marker":
+            color = "red"
+        else:
+            color = "gray"  # fallback for unknown types
+
         draw.rectangle([x, y, x + w, y + h], outline=color, width=2)
 
     pil_img.save(out_path)
