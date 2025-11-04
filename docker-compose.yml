@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  fraud-detector:
+    build: .
+    container_name: fraud-detector
+    volumes:
+      - ./files:/app/files
+    command: ["python", "fraud_detect.py"]

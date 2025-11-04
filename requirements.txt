@@ -1,0 +1,6 @@
+pytesseract
+opencv-python-headless
+pymupdf
+pillow
+numpy
+matplotlib
