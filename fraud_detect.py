@@ -26,7 +26,8 @@ font_size_deviation_multiplier = 2  # Multiplier for std deviation threshold
 fraud_score_max_trigger = 10  # Number of suspicious boxes to trigger max fraud score
 
 # Overlay colors
-color_low_confidence = "red"
+color_template_marker = "red"
+color_low_confidence = "blue"
 color_size_deviation = "orange"
 
 
@@ -135,11 +136,11 @@ def draw_overlay(img, boxes, out_path):
 
     for suspicion_type, (x, y, w, h) in boxes:
         if suspicion_type == "size_deviation":
-            color = "orange"
+            color = color_size_deviation
         elif suspicion_type == "low_confidence":
-            color = "blue"
+            color = color_low_confidence
         elif suspicion_type == "template_marker":
-            color = "red"
+            color = color_template_marker
         else:
             color = "gray"  # fallback for unknown types
 
